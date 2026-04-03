@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mijn Decibel VU Meter Deluxe</title>
+    <style>
+        /* --- MOOIE, GEMODERNISEERDE CSS OPMAAK --- */
+        
+        body {
+            font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
+            background: radial-gradient(circle, #333 0%, #1a1a1a 100%);
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh; 
+            margin: 0;
+            padding: 20px;
+        }
+
+        .console-container {
+            background-color: #2a2a2a;
+            border-radius: 20px;
+            border: 4px solid #444;
+            padding: 40px;
+            width: 90%;
+            max-width: 600px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            position: relative;
+        }
+
+        h1 {
+            font-size: 28px;
+            margin-top: 0;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #aaa;
+        }
+
+        p {
+            font-size: 16px;
+            color: #888;
+            margin-bottom: 30px;
+        }
+
+        #dbWeergave {
+            font-family: 'Courier New', Courier, monospace; 
+            font-size: 90px;
+            font-weight: bold;
+            margin: 10px 0 20px 0;
+            background-color: #111; 
+            border-radius: 10px;
+            padding: 10px 20px;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.8);
+            border: 2px solid #333;
+            width: 100%;
+            max-width: 350px;
+            transition: color 0.1s;
+            position: relative;
+            color: #4CAF50;
+        }
+
+        #dbWeergave::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 100%);
+            border-radius: 10px;
+            pointer-events: none;
+        }
+
+        .meter-box {
+            width: 100%;
+            height: 60px;
+            background-color: #1a1a1a; 
+            border-radius: 30px;
+            overflow: hidden; 
+            margin: 10px 0 30px 0;
+            box-shadow: inset 0 5px 15px rgba(0,0,0,0.8), 0 0 10px rgba(255,255,255,0.05);
+            border: 3px solid #444;
+            position: relative;
+        }
+
+        .meter-vulling {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50 0%, #FFC107 50%, #F44336 100%);
+            transition: width 0.1s ease-out; 
+            position: relative;
+            box-shadow: inset 0 2px 5px rgba(255, 255, 255, 0.4); 
+        }
+
+        .meter-box::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(180deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 40%, rgba(0,0,0,0.1) 60%, rgba(0,0,0,0) 100%);
+            pointer-events: none;
+        }
+
+        button {
+            padding: 15px 50px;
+            font-size: 20px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: 0.3s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            margin-bottom: 20px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+            transform: translateY(-2px); 
+            box-shadow: 0 6px 10px rgba(0,0,0,0.4);
+        }
+
+        button:active {
+            transform: translateY(1px); 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        #status {
+            font-size: 24px;
+            font-weight: bold;
+            min-height: 35px; 
+            margin-top: 10px;
+        }
+
+        @keyframes flikker {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .waarschuwing {
+            animation: flikker 0.5s infinite; 
+        }
+
+        /* Foutmelding opmaak */
+        .foutmelding {
+            color: #F44336 !important;
+            background-color: rgba(244, 67, 54, 0.1);
+            padding: 10px;
+            border-radius: 10px;
+            border: 1px solid #F44336;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="console-container">
+        <h1>Decibel Meter</h1>
+        <p>Geluidsniveaus in kaart gebracht. Boven de 85 dB is schadelijk!</p>
+
+        <button id="startKnop" onclick="startMeter()">Start Meter</button>
+
+        <div id="dbWeergave">0 dB</div>
+
+        <div class="meter-box">
+            <div class="meter-vulling" id="meterBalk"></div>
+        </div>
+
+        <div id="status">Wacht op start...</div>
+    </div>
+
+    <script>
+        /* --- JAVASCRIPT CODE --- */
+        
+        let isWaarschuwingBezig = false; 
+        let animatieLoop; // Bewaart de meet-loop zodat we hem kunnen stoppen
+
+        async function startMeter() {
+            let knop = document.getElementById('startKnop');
+            let statusTekst = document.getElementById('status');
+            
+            knop.style.display = 'none';
+            statusTekst.innerText = "Aan het luisteren...";
+            statusTekst.classList.remove('foutmelding'); 
+            statusTekst.style.color = "white"; // Reset kleur
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                
+                // --- NIEUW: Controleer of de microfoon plotseling stopt of geblokkeerd wordt ---
+                // We pakken de audio-verbinding (track) en luisteren of deze 'eindigt'
+                stream.getAudioTracks()[0].onended = function() {
+                    cancelAnimationFrame(animatieLoop); // Stop de continu meting
+                    
+                    // Zet alles terug op 0
+                    document.getElementById('meterBalk').style.width = '0%';
+                    document.getElementById('dbWeergave').innerText = "0 dB";
+                    document.getElementById('dbWeergave').style.color = "#4CAF50";
+
+                    // Laat de foutmelding zien
+                    statusTekst.innerText = "❌ Microfoon verbinding verbroken of geblokkeerd!";
+                    statusTekst.classList.add('foutmelding');
+                    
+                    // Laat de knop weer zien
+                    knop.style.display = 'block';
+                    knop.innerText = "Probeer opnieuw";
+                };
+
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const analyser = audioContext.createAnalyser();
+                const microfoon = audioContext.createMediaStreamSource(stream);
+
+                microfoon.connect(analyser);
+                analyser.fftSize = 256; 
+
+                const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+                function meetGeluid() {
+                    analyser.getByteFrequencyData(dataArray);
+
+                    let som = 0;
+                    for (let i = 0; i < dataArray.length; i++) {
+                        som += dataArray[i];
+                    }
+                    let volume = som / dataArray.length; 
+
+                    let percentage = (volume / 150) * 100; 
+                    if (percentage > 100) percentage = 100;
+
+                    let decibel = Math.round(percentage * 1.1); 
+                    
+                    document.getElementById('meterBalk').style.width = percentage + '%';
+                    document.getElementById('dbWeergave').innerText = decibel + " dB";
+
+                    let dbWeergave = document.getElementById('dbWeergave');
+                    if (decibel < 75) {
+                        dbWeergave.style.color = "#4CAF50"; // Groen
+                    } else if (decibel < 85) {
+                        dbWeergave.style.color = "#FFC107"; // Geel
+                    } else {
+                        dbWeergave.style.color = "#F44336"; // Rood
+                    }
+
+                    if (decibel >= 85 && isWaarschuwingBezig === false) {
+                        geefWaarschuwing(decibel);
+                    }
+
+                    // Sla de loop op in de variabele 'animatieLoop' zodat we hem kunnen stoppen bij een fout
+                    animatieLoop = requestAnimationFrame(meetGeluid);
+                }
+
+                meetGeluid(); 
+
+            } catch (fout) {
+                // Dit gebeurt als je aan het begin al weigert of geen microfoon hebt aangesloten
+                statusTekst.innerText = "❌ Je hebt de microfoon geblokkeerd of er is geen microfoon gevonden!";
+                statusTekst.classList.add('foutmelding');
+                
+                knop.style.display = 'block';
+                knop.innerText = "Probeer opnieuw";
+            }
+        }
+
+        function geefWaarschuwing(gemetenDb) {
+            isWaarschuwingBezig = true; 
+
+            let statusTekst = document.getElementById('status');
+            statusTekst.innerText = "⚠️ GEVAARLIJK! " + gemetenDb + " dB IS THE HARD!!! ⚠️";
+            statusTekst.style.color = "#F44336";
+            statusTekst.classList.add('waarschuwing'); 
+
+            let stem = new SpeechSynthesisUtterance("Warning!");
+            stem.lang = "en-US"; 
+            stem.volume = 1;     
+            window.speechSynthesis.speak(stem);
+
+            setTimeout(function() {
+                isWaarschuwingBezig = false;
+                
+                // Zorg dat hij na de waarschuwing alleen "Aan het luisteren..." zegt 
+                // als de microfoon ondertussen niet is geblokkeerd!
+                if (!statusTekst.classList.contains('foutmelding')) {
+                    statusTekst.innerText = "Aan het luisteren...";
+                    statusTekst.style.color = "white";
+                    statusTekst.classList.remove('waarschuwing'); 
+                }
+            }, 2500);
+        }
+    </script>
+</body>
+</html>
